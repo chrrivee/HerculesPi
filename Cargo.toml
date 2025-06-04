@@ -1,0 +1,29 @@
+[package]
+name = "hercules"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sysinfo = "0.29.10" # System information
+chrono = "0.4" # Time handling
+clap = { version = "4.4", features = [
+    "derive",
+] } # Command line argument parsing
+colored = "2.0" # Terminal coloring
+indicatif = "0.17" # Progress bars
+anyhow = "1.0" # Error handling
+log = "0.4" # Logging
+env_logger = "0.10" # Logging
+rusb = "0.9" # USB communication
+hidapi = "2.4.1" # HID device communication for accelerometers/gyroscopes
+crossbeam-channel = "0.5" # Channel for cross-thread communication
+# Local installer module is in src/installer.rs
+
+[target.'cfg(target_os = "windows")'.dependencies]
+is_elevated = "0.1" # Check for admin privileges
+winapi = { version = "0.3", features = ["winuser", "shellapi", "winreg"] } # Windows API access
+
+[target.'cfg(target_os = "linux")'.dependencies]
+users = "0.11" # User/group information, replaces is_elevated on Linux
+nix = "0.26" # Unix API access
+dirs = "5.0" # Standard directories on Linux
