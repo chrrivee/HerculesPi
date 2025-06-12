@@ -1,6 +1,6 @@
 # HERCULES - System Resource Monitor
 
-![HERCULES Logo](https://via.placeholder.com/150x50?text=HERCULES)
+![HERCULES Logo](https://icon2.cleanpng.com/20180624/wry/kisspng-computer-cases-housings-raspberry-pi-3-general-p-confitte-5b3061901b19d8.185407001529897360111.jpg)
 
 A powerful system resource monitor built in Rust with a compact mode that resembles neofetch. Supports both Windows and Linux.
 
