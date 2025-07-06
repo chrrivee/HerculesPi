@@ -44,7 +44,7 @@ impl Default for MonitorConfig {
             max_processes: 10,
             continuous: true,
             show_compact_mode: false,
-            show_installer: false,
+            show_installer: false,`
             show_sensors: false,
             sensor_config: sensors::SensorConfig::default(),
         }
@@ -900,3 +900,4 @@ fn monitor_processes(res: &SystemResources, max_processes: usize) -> Result<()> 
 
     Ok(())
 }
+//funny comment
