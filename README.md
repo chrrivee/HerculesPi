@@ -1,6 +1,5 @@
 # HERCULES - System Resource Monitor
 
-
 A powerful system resource monitor built in Rust with a compact mode that resembles neofetch. Supports both Windows and Linux.
 
 ## Features
@@ -14,6 +13,7 @@ A powerful system resource monitor built in Rust with a compact mode that resemb
 - Gyroscope and accelerometer monitoring via USB
 - Beautiful compact display mode with Intel CPU ASCII art
 - Cross-platform support (Windows and Linux)
+- Fully functional CLI configuration system with persistent settings
 
 ## Installation
 
@@ -25,7 +25,7 @@ Clone the repository and build with Cargo:
 git clone https://github.com/yourusername/hercules.git
 cd hercules
 cargo build --release
-```
+````
 
 The built executable will be available at `target/release/hercules`.
 
@@ -34,6 +34,7 @@ The built executable will be available at `target/release/hercules`.
 You can also use the built-in installer:
 
 #### Windows
+
 ```bash
 hercules --installer
 ```
@@ -41,6 +42,7 @@ hercules --installer
 This will install Hercules to `C:\Program Files\hercules` and create a desktop shortcut.
 
 #### Linux
+
 ```bash
 sudo hercules --installer
 ```
@@ -78,12 +80,13 @@ cargo run -- compact
 ```
 
 The compact mode provides a visually appealing display with:
-- Intel CPU ASCII art that changes color based on system load
-- System information (OS, kernel, hostname)
-- CPU information with usage bars
-- Memory usage statistics
-- Network transfer rates
-- Individual CPU core usage displayed graphically
+
+* Intel CPU ASCII art that changes color based on system load
+* System information (OS, kernel, hostname)
+* CPU information with usage bars
+* Memory usage statistics
+* Network transfer rates
+* Individual CPU core usage displayed graphically
 
 ### Sensor Mode
 
@@ -101,29 +104,55 @@ cargo run -- --sensors
 
 This mode will attempt to detect and read data from USB-connected gyroscopes and accelerometers.
 
+### CLI Configuration System
+
+Hercules includes a CLI-based configuration system for easy customization:
+
+* View current configuration:
+
+  ```bash
+  hercules conf
+  ```
+
+* Change a setting:
+
+  ```bash
+  hercules conf <property> -> <value>
+  ```
+
+* Reset configuration to defaults:
+
+  ```bash
+  hercules conf-reset
+  ```
+
 ## Configuration
 
-Configuration is done through command-line arguments. More customization options will be available in future releases.
+Configuration is done through command-line arguments and CLI commands. More customization options will be available in future releases.
 
 ## Requirements
 
 ### Windows
-- Rust 1.56.0 or higher
-- Standard system libraries for retrieving system information
-- Optional: USB-connected gyroscope/accelerometer for sensor monitoring
+
+* Rust 1.56.0 or higher
+* Standard system libraries for retrieving system information
+* Optional: USB-connected gyroscope/accelerometer for sensor monitoring
 
 ### Linux
-- Rust 1.56.0 or higher
-- libudev-dev package for USB device access
-- libusb-1.0-0-dev for USB communication
-- Optional: USB-connected gyroscope/accelerometer for sensor monitoring
+
+* Rust 1.56.0 or higher
+* `libudev-dev` package for USB device access
+* `libusb-1.0-0-dev` for USB communication
+* Optional: USB-connected gyroscope/accelerometer for sensor monitoring
 
 On Debian/Ubuntu systems, install dependencies with:
+
 ```bash
 sudo apt install libudev-dev libusb-1.0-0-dev
 ```
 
 On Fedora/RHEL systems:
+
 ```bash
 sudo dnf install systemd-devel libusb1-devel
 ```
@@ -132,11 +161,36 @@ sudo dnf install systemd-devel libusb1-devel
 
 Hercules supports various USB-connected gyroscope and accelerometer devices, including:
 
-- MPU-6050 based adapters
-- Arduino Leonardo with IMU shields
-- SparkFun 9DoF sensors
-- Many gaming controllers with gyro (like DualShock 4, Nintendo Switch Pro)
-- Other HID devices that identify as gyroscopes or accelerometers
+* MPU-6050 based adapters
+* Arduino Leonardo with IMU shields
+* SparkFun 9DoF sensors
+* Many gaming controllers with gyro (like DualShock 4, Nintendo Switch Pro)
+* Other HID devices that identify as gyroscopes or accelerometers
+
+## ✅ All Features Working
+
+### ✅ Installer
+
+* `hercules --installer` and `hercules installer` working perfectly
+
+### ✅ Compact Mode with Sensors
+
+* `hercules --compact` and `hercules compact`
+* Displays sensor data integrated with the ASCII art
+
+### ✅ Sensors
+
+* `hercules --sensors` and `hercules sensors`
+* Full sensor data display without errors
+
+### ✅ CLI Configuration System
+
+* `hercules conf` — shows current config
+* `hercules conf <property> -> <value>` — change settings
+* `hercules conf-reset` — resets to defaults
+* Syntax with `->` arrow works as expected
+
+
 
 ## License
 
