@@ -11,6 +11,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::env;
 use sysinfo::{CpuExt, DiskExt, NetworkExt, PidExt, ProcessExt, System, SystemExt};
 
+mod config;
 mod installer;
 #[allow(dead_code)]
 mod sensors;
@@ -130,6 +131,60 @@ impl SystemResources {
 fn main() -> Result<()> {
     env_logger::init();
 
+    // Handle special CLI commands first
+    let args: Vec<String> = env::args().collect();
+
+    // Handle configuration commands with exact syntax: "hercules conf <property> -> <new_value>"
+    if args.len() >= 2 {
+        match args[1].as_str() {
+            "conf" => {
+                if args.len() == 2 {
+                    // Display current configuration
+                    return config::ConfigManager::display_config();
+                } else {
+                    // Handle configuration change
+                    return config::ConfigManager::handle_conf_command(&args[1..]);
+                }
+            }
+            "conf-reset" => {
+                return config::ConfigManager::reset_config();
+            }
+            // Handle shorthand commands
+            "installer" => {
+                installer::prompt_install();
+            }
+            "compact" => {
+                // Run in compact mode
+                let config_manager = config::ConfigManager::new()?;
+                let file_config = config_manager.get_config();
+                let mut config: MonitorConfig = file_config.into();
+                config.show_compact_mode = true;
+                config.continuous = false; // Single display for shorthand
+
+                let resources = Arc::new(Mutex::new(SystemResources::new(&config)));
+                return display_compact_mode(&resources, config.show_sensors);
+            }
+            "sensors" => {
+                // Run with sensors enabled
+                let config_manager = config::ConfigManager::new()?;
+                let file_config = config_manager.get_config();
+                let mut config: MonitorConfig = file_config.into();
+                config.show_sensors = true;
+                config.sensor_config.enabled = true;
+                config.continuous = false; // Single display for shorthand
+
+                let resources = Arc::new(Mutex::new(SystemResources::new(&config)));
+                if config.show_compact_mode {
+                    return display_compact_mode(&resources, true);
+                } else {
+                    monitor_resources(&resources, &config)?;
+                    return monitor_sensors(&resources);
+                }
+            }
+            _ => {}
+        }
+    }
+
     // Set up clap for command line argument handling
     let matches = Command::new("Hercules")
         .version("0.1.0")
@@ -168,18 +223,26 @@ fn main() -> Result<()> {
     println!("{}", "==================================".green());
     println!("Use 'hercules compact' or 'hercules --compact' for compact display");
     println!("Use 'hercules sensors' or 'hercules --sensors' to enable gyro/accelerometer");
+    println!("Use 'hercules conf' to view configuration");
+    println!("Use 'hercules conf <property> -> <value>' to change settings");
     println!();
 
-    // Initialize with default config and update based on args
-    let mut config = MonitorConfig::default();
-    config.show_compact_mode = use_compact_mode;
-    config.show_installer = use_installer;
-    config.show_sensors = use_sensors;
+    // Load configuration from file, then override with command line args
+    let config_manager = config::ConfigManager::new()?;
+    let file_config = config_manager.get_config();
+    let mut config: MonitorConfig = file_config.into();
 
-    if config.show_sensors {
+    // Override with command line arguments
+    if use_compact_mode {
+        config.show_compact_mode = true;
+    }
+    if use_installer {
+        config.show_installer = true;
+    }
+    if use_sensors {
+        config.show_sensors = true;
         config.sensor_config.enabled = true;
         config.sensor_config.update_interval_ms = config.update_interval_ms / 10;
-        // Higher refresh rate for sensors
     }
 
     // Create shared system resources
@@ -209,7 +272,7 @@ fn main() -> Result<()> {
             let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
             if config.show_compact_mode {
-                display_compact_mode(&resources)?;
+                display_compact_mode(&resources, config.show_sensors)?;
             } else {
                 println!("{} {}", "HERCULES".bold().green(), timestamp.cyan());
                 println!("{}", "==================================".green());
@@ -245,7 +308,7 @@ fn main() -> Result<()> {
 
         // One-time display of system information
         if config.show_compact_mode {
-            display_compact_mode(&resources)?;
+            display_compact_mode(&resources, config.show_sensors)?;
         } else {
             monitor_resources(&resources, &config)?;
 
@@ -259,7 +322,7 @@ fn main() -> Result<()> {
 }
 
 // Function to display compact mode with ASCII art
-fn display_compact_mode(resources: &Arc<Mutex<SystemResources>>) -> Result<()> {
+fn display_compact_mode(resources: &Arc<Mutex<SystemResources>>, show_sensors: bool) -> Result<()> {
     let res = resources
         .lock()
         .map_err(|e| anyhow!("Failed to lock resources: {}", e))?;
@@ -315,6 +378,16 @@ fn display_compact_mode(resources: &Arc<Mutex<SystemResources>>) -> Result<()> {
         0.0
     };
 
+    // Get sensor data if enabled
+    let sensor_data = res.last_sensor_data;
+    let has_sensor_data = show_sensors
+        && (sensor_data.acceleration[0] != 0.0
+            || sensor_data.acceleration[1] != 0.0
+            || sensor_data.acceleration[2] != 0.0
+            || sensor_data.gyro[0] != 0.0
+            || sensor_data.gyro[1] != 0.0
+            || sensor_data.gyro[2] != 0.0);
+
     // ASCII art for CPU
     let cpu_art = [
         r"  ╔═════════════════╗  ",
@@ -360,6 +433,19 @@ fn display_compact_mode(resources: &Arc<Mutex<SystemResources>>) -> Result<()> {
         timestamp.cyan(),
         format!("(up: {})", uptime).yellow()
     );
+    if show_sensors {
+        println!(
+            "{} {} {}",
+            "│".cyan(),
+            "🔬 SENSORS ENABLED".bold().bright_blue(),
+            if has_sensor_data {
+                "📡 ACTIVE"
+            } else {
+                "⚠️  NO DATA"
+            }
+            .yellow()
+        );
+    }
     println!(
         "{}",
         "╰─────────────────────────────────────────────╯".cyan()
@@ -458,6 +544,71 @@ fn display_compact_mode(resources: &Arc<Mutex<SystemResources>>) -> Result<()> {
         "{}",
         "╰─────────────────────────────────────────────╯".cyan()
     );
+
+    // Display sensor data in compact mode if enabled
+    if show_sensors {
+        println!(
+            "\n{}",
+            "╭─────────────────────────────────────────────╮".cyan()
+        );
+        println!("{} {}", "│".cyan(), "Sensor Data:".bold().bright_blue());
+        println!("{}", "│".cyan());
+
+        if has_sensor_data {
+            // Compact sensor display
+            println!(
+                "│  🚀 Accel: X:{:6.2} Y:{:6.2} Z:{:6.2} m/s²",
+                sensor_data.acceleration[0],
+                sensor_data.acceleration[1],
+                sensor_data.acceleration[2]
+            );
+            println!(
+                "│  🌀 Gyro:  X:{:6.1} Y:{:6.1} Z:{:6.1} °/s",
+                sensor_data.gyro[0], sensor_data.gyro[1], sensor_data.gyro[2]
+            );
+
+            if sensor_data.orientation[0] != 0.0
+                || sensor_data.orientation[1] != 0.0
+                || sensor_data.orientation[2] != 0.0
+            {
+                println!(
+                    "│  📐 Orient: R:{:5.1} P:{:5.1} Y:{:5.1} °",
+                    sensor_data.orientation[0],
+                    sensor_data.orientation[1],
+                    sensor_data.orientation[2]
+                );
+            }
+
+            if sensor_data.temperature != 0.0 {
+                println!("│  🌡️  Temp:  {:.1}°C", sensor_data.temperature);
+            }
+
+            // Simple orientation visualization
+            let roll_char = match sensor_data.orientation[0] {
+                r if r > 30.0 => "↗️",
+                r if r > 10.0 => "↗",
+                r if r < -30.0 => "↙️",
+                r if r < -10.0 => "↙",
+                _ => "→",
+            };
+            let pitch_char = match sensor_data.orientation[1] {
+                p if p > 30.0 => "⬆️",
+                p if p > 10.0 => "⬆",
+                p if p < -30.0 => "⬇️",
+                p if p < -10.0 => "⬇",
+                _ => "➡️",
+            };
+            println!("│  📱 Position: {} {}", roll_char, pitch_char);
+        } else {
+            println!("│  ⚠️  No sensor data available");
+            println!("│     Check USB connection or run with --sensors");
+        }
+
+        println!(
+            "{}",
+            "╰─────────────────────────────────────────────╯".cyan()
+        );
+    }
 
     Ok(())
 }
